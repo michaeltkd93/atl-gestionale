@@ -1,21 +1,52 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { listSubscriptions } from '../../lib/demo';
 
-export default function Page(){
-  const [subs, setSubs] = useState<any[]>([]);
-  useEffect(()=>{ setSubs(listSubscriptions()); },[]);
-  const csv = ()=>{
-    const header='Atleta,Piano,Inizio,Fine\n';
-    const lines=subs.map(s=>`${s.memberName},${s.piano},${s.start},${s.end}`).join('\n');
-    const blob=new Blob([header+lines],{type:'text/csv'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='report-abbonamenti.csv'; a.click();
-  };
+type Sub = {
+  id:string; member_id:string;
+  piano:'mensile'|'quadrimestre'|'annuale';
+  frequenza:'x2'|'x3';
+  inizio:string; fine:string;
+  member?: { sede?: string };
+};
+
+type Price = { sede:string; tipo:'mensile'|'quadrimestre'|'annuale'; frequenza:'x2'|'x3'; valore:number };
+
+export default function Reports() {
+  const [subs,setSubs] = useState<Sub[]>([]);
+  const [prices,setPrices] = useState<Price[]>([]);
+  const [range,setRange] = useState<'mensile'|'quadrimestre'|'annuale'>('mensile');
+
+  useEffect(()=>{ (async()=>{
+    const s = await fetch('/api/subscriptions').then(r=>r.json());
+    setSubs(s);
+
+    const p = await fetch('/api/prices').then(r=>r.json());
+    setPrices(p);
+  })(); },[]);
+
+  const total = subs.reduce((sum, s) => {
+    if (s.piano !== range) return sum;
+    const sede = s.member?.sede || '';
+    const price = prices.find(p => p.sede===sede && p.tipo===s.piano && p.frequenza===s.frequenza);
+    return sum + (price?.valore || 0);
+  }, 0);
+
   return (
-    <>
-      <div className="header"><h2>Report</h2><button className="primary" onClick={csv}>Esporta CSV</button></div>
-      <div className="card"><p>Report demo. La versione con DB includerà filtri avanzati e PDF.</p></div>
-    </>
+    <div>
+      <h2>Report entrate</h2>
+      <div className="card" style={{padding:12, marginBottom:16}}>
+        <label style={{marginRight:8}}>Periodo:</label>
+        <select value={range} onChange={e=>setRange(e.target.value as any)}>
+          <option value="mensile">Mensile</option>
+          <option value="quadrimestre">Quadrimestre</option>
+          <option value="annuale">Annuale</option>
+        </select>
+      </div>
+
+      <div className="card" style={{padding:16}}>
+        <h3>Totale {range}: € {total.toFixed(2)}</h3>
+        <small>I prezzi sono presi dalla tabella <code>prices</code> (sede + X2/X3).</small>
+      </div>
+    </div>
   );
 }
