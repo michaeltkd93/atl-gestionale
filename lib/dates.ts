@@ -14,9 +14,8 @@ export function calcEndDate(startISO: string, piano: 'mensile'|'quadrimestre'|'a
   if (!startISO) return '';
   if (piano === 'mensile') return addMonthsKeepDay(startISO, 1);
   if (piano === 'quadrimestre') return addMonthsKeepDay(startISO, 4);
-  // Annuale: fino al 30/07
   const start = new Date(startISO + 'T00:00:00Z');
-  const target = new Date(Date.UTC(start.getUTCFullYear(), 6, 30)); // 30 Luglio
+  const target = new Date(Date.UTC(start.getUTCFullYear(), 6, 30));
   if (start.getTime() > target.getTime()) target.setUTCFullYear(target.getUTCFullYear() + 1);
   return target.toISOString().slice(0,10);
 }
